@@ -1,0 +1,14 @@
+StartTime,SuccessfulTime,NewValue,Email,case_number
+2026-07-01 10:00:00,,Open,agent1@example.com,CASE-001
+2026-07-01 14:00:00,,Resolved,agent1@example.com,CASE-001
+2026-07-01 16:00:00,,In Progress,agent2@example.com,CASE-001
+2026-07-02 09:00:00,,Open,agent3@example.com,CASE-002
+2026-07-02 11:00:00,,Resolved,agent3@example.com,CASE-002
+2026-07-02 16:00:00,,Resolved,agent4@example.com,CASE-002
+2026-07-03 08:00:00,,Open,agent5@example.com,CASE-003
+2026-07-03 12:00:00,,Resolved,agent5@example.com,CASE-003
+2026-07-04 09:00:00,,Open,agent6@example.com,CASE-004
+2026-07-04 10:00:00,,Resolved,agent6@example.com,CASE-004
+2026-07-05 08:00:00,,Resolved,agent7@example.com,CASE-005
+7 jul 2026, 8:13:41,,Open,agent8@example.com,CASE-005
+5 jul 2026, 12:36:29,,In Progress,agent7@example.com,CASE-005
