@@ -91,12 +91,14 @@ if analyze_clicked:
                 normalized_df, invalid_dates = normalize_dataframe(raw_df)
                 unique_cases = normalized_df["case_number"].nunique()
 
-                # Detect reopens (with optional date range for
+                # Detect reopens (with optional date/time range for
                 # reopen_por_resolved_en_rango strategy)
                 all_reopens = detect_reopens(
                     normalized_df,
                     start_date=start_date if start_date else None,
                     end_date=end_date if end_date else None,
+                    start_time=start_time if start_date else None,
+                    end_time=end_time if end_date else None,
                 )
                 total_reopens = len(all_reopens)
 

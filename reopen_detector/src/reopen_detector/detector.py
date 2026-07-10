@@ -1,6 +1,6 @@
 """Core reopen detection logic."""
 
-from datetime import date, datetime
+from datetime import date, datetime, time
 
 import pandas as pd
 
@@ -11,6 +11,8 @@ def detect_reopens(
     df: pd.DataFrame,
     start_date: date | None = None,
     end_date: date | None = None,
+    start_time: time | None = None,
+    end_time: time | None = None,
 ) -> pd.DataFrame:
     """Detect reopen cases from normalized interaction data.
 
@@ -36,6 +38,8 @@ def detect_reopens(
             Must be sorted by case_number and StartTime.
         start_date: Optional start of the query date range (inclusive).
         end_date: Optional end of the query date range (inclusive).
+        start_time: Optional start time of day (UY local, defaults to 00:00:00).
+        end_time: Optional end time of day (UY local, defaults to 23:59:59).
 
     Returns:
         DataFrame with columns:
@@ -95,6 +99,13 @@ def detect_reopens(
     # falls within the query date range.
     # -------------------------------------------------------------------
     if start_date is not None or end_date is not None:
+        # Build full datetime range bounds (date + time)
+        st = start_time if start_time is not None else time(0, 0)
+        et = end_time if end_time is not None else time(23, 59, 59)
+
+        range_start = datetime.combine(start_date, st) if start_date is not None else None
+        range_end = datetime.combine(end_date, et) if end_date is not None else None
+
         for case_number, group in df.groupby("case_number"):
             group = group.reset_index(drop=True)
 
@@ -105,22 +116,24 @@ def detect_reopens(
             if total_resolved < 2:
                 continue
 
-            # Check if at least one resolved falls within the date range
+            # Check if at least one resolved falls within the full
+            # datetime range (date + time, UY local).
             has_resolved_in_range = False
             first_in_range_date = None
             for _, resolved_row in resolved_rows.iterrows():
                 resolved_dt = resolved_row["StartTime"]
-                if isinstance(resolved_dt, datetime):
-                    resolved_date_only = resolved_dt.date()
-                elif isinstance(resolved_dt, pd.Timestamp):
-                    resolved_date_only = resolved_dt.date()
-                else:
+
+                # Convert to Python datetime for consistent comparison
+                if isinstance(resolved_dt, pd.Timestamp):
+                    resolved_dt = resolved_dt.to_pydatetime()
+
+                if not isinstance(resolved_dt, datetime):
                     continue
 
                 in_range = True
-                if start_date is not None and resolved_date_only < start_date:
+                if range_start is not None and resolved_dt < range_start:
                     in_range = False
-                if end_date is not None and resolved_date_only > end_date:
+                if range_end is not None and resolved_dt > range_end:
                     in_range = False
 
                 if in_range:

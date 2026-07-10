@@ -550,3 +550,86 @@ def test_resolved_en_rango_resolved_date_is_first_in_history():
     # reopen_date should be the first resolved within range
     expected_reopen_date = pd.Timestamp("2026-07-10 12:00:00")
     assert row["reopen_date"] == expected_reopen_date
+
+
+def test_resolved_en_rango_with_time_filter():
+    """Strategy 3 should use full datetime (date + time) for range check.
+
+    Reproduces the bug: a case with resolved at 2026-07-08 10:00 and
+    2026-07-09 15:00. When filtering 2026-07-08 17:00 → 2026-07-09 23:59,
+    the first resolved (10:00) falls outside the time window, but the
+    second (15:00 on 07-09) is inside. Strategy 3 should use the second
+    one as first_in_range_date, not the first (which would be discarded
+    later by filter_by_reopen_date).
+    """
+    from datetime import date, time
+
+    df = _build_df(
+        [
+            {
+                "StartTime": "2026-07-08 10:00:00",
+                "NewValue": "Resolved",
+                "Email": "agent1@example.com",
+                "case_number": "CASE-BUG-01",
+            },
+            {
+                "StartTime": "2026-07-09 15:00:00",
+                "NewValue": "Resolved",
+                "Email": "agent2@example.com",
+                "case_number": "CASE-BUG-01",
+            },
+        ]
+    )
+
+    result = detect_reopens(
+        df,
+        start_date=date(2026, 7, 8),
+        end_date=date(2026, 7, 9),
+        start_time=time(17, 0),
+        end_time=time(23, 59),
+    )
+
+    types = result["detection_type"].tolist()
+    assert "reopen_por_resolved_en_rango" in types
+
+    row = result[result["detection_type"] == "reopen_por_resolved_en_rango"].iloc[0]
+    # Should be the second resolved (15:00 on 07-09), NOT the first (10:00 on 07-08)
+    # because 10:00 < 17:00 (outside the time window)
+    assert row["reopen_date"] == pd.Timestamp("2026-07-09 15:00:00")
+    assert row["agent"] == "agent2@example.com"
+
+
+def test_resolved_en_rango_with_time_filter_first_in_range():
+    """When both resolved are inside the full datetime range, the first
+    one (chronologically) should be used."""
+    from datetime import date, time
+
+    df = _build_df(
+        [
+            {
+                "StartTime": "2026-07-08 18:00:00",
+                "NewValue": "Resolved",
+                "Email": "agent1@example.com",
+                "case_number": "CASE-BUG-02",
+            },
+            {
+                "StartTime": "2026-07-09 15:00:00",
+                "NewValue": "Resolved",
+                "Email": "agent2@example.com",
+                "case_number": "CASE-BUG-02",
+            },
+        ]
+    )
+
+    result = detect_reopens(
+        df,
+        start_date=date(2026, 7, 8),
+        end_date=date(2026, 7, 9),
+        start_time=time(17, 0),
+        end_time=time(23, 59),
+    )
+
+    row = result[result["detection_type"] == "reopen_por_resolved_en_rango"].iloc[0]
+    # Both are in range (18:00 >= 17:00), first chronologically wins
+    assert row["reopen_date"] == pd.Timestamp("2026-07-08 18:00:00")
+    assert row["agent"] == "agent1@example.com"
