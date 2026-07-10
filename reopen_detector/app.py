@@ -14,7 +14,7 @@ from reopen_detector.validator import validate_dataframe
 from reopen_detector.normalizer import normalize_dataframe
 from reopen_detector.detector import detect_reopens
 from reopen_detector.filters import filter_by_reopen_date
-from reopen_detector.formatter import format_visible_table
+from reopen_detector.formatter import format_aggregated_table, format_visible_table
 from reopen_detector.exporter import export_to_csv, export_to_excel
 from reopen_detector.metrics import calculate_metrics
 
@@ -119,8 +119,8 @@ if analyze_clicked:
                     reopens_in_range=reopens_in_range,
                 )
 
-                # Format for display
-                st.session_state.visible_df = format_visible_table(filtered_reopens)
+                # Format for display (aggregated: one row per case)
+                st.session_state.visible_df = format_aggregated_table(filtered_reopens)
                 st.session_state.technical_df = all_reopens
                 st.session_state.technical_in_range = filtered_reopens
                 st.session_state.results = True

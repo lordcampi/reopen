@@ -13,6 +13,14 @@ VISIBLE_COLUMNS_MAP = {
     "agent": "Agente",
 }
 
+# Column names for aggregated visible output (one row per case)
+AGGREGATED_COLUMNS_MAP = {
+    "case_number": "Número de caso",
+    "reopen_count": "Reaperturas en el período",
+    "last_reopen_date": "Última fecha de reapertura",
+    "last_agent": "Último agente",
+}
+
 # Technical detail columns
 TECHNICAL_COLUMNS = [
     "case_number",
