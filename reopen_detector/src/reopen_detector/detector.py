@@ -1,11 +1,17 @@
 """Core reopen detection logic."""
 
+from datetime import date, datetime
+
 import pandas as pd
 
 from reopen_detector.config import RESOLVED_VALUE
 
 
-def detect_reopens(df: pd.DataFrame) -> pd.DataFrame:
+def detect_reopens(
+    df: pd.DataFrame,
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> pd.DataFrame:
     """Detect reopen cases from normalized interaction data.
 
     For each case_number:
@@ -16,10 +22,20 @@ def detect_reopens(df: pd.DataFrame) -> pd.DataFrame:
        - reopen_confirmado: post-resolved NewValue != 'resolved'
        - reopen_por_resolved_multiple: post-resolved NewValue == 'resolved'
 
+    Additionally, if start_date and/or end_date are provided, a third
+    strategy is applied:
+
+    5. reopen_por_resolved_en_rango: the case has at least one resolved
+       anywhere in its history AND at least one resolved within the
+       specified date range (and both are different resolved events,
+       i.e. total resolved count >= 2).
+
     Args:
         df: Normalized DataFrame with columns:
             case_number, StartTime, NewValue, Email.
             Must be sorted by case_number and StartTime.
+        start_date: Optional start of the query date range (inclusive).
+        end_date: Optional end of the query date range (inclusive).
 
     Returns:
         DataFrame with columns:
@@ -72,6 +88,63 @@ def detect_reopens(df: pd.DataFrame) -> pd.DataFrame:
                 "post_resolved_new_value": post_resolved_new_value,
             }
         )
+
+    # -------------------------------------------------------------------
+    # Strategy 3: reopen_por_resolved_en_rango
+    # A case has >= 2 resolved events total, and at least one of them
+    # falls within the query date range.
+    # -------------------------------------------------------------------
+    if start_date is not None or end_date is not None:
+        for case_number, group in df.groupby("case_number"):
+            group = group.reset_index(drop=True)
+
+            resolved_mask = group["NewValue"] == RESOLVED_VALUE
+            resolved_rows = group[resolved_mask]
+
+            total_resolved = len(resolved_rows)
+            if total_resolved < 2:
+                continue
+
+            # Check if at least one resolved falls within the date range
+            has_resolved_in_range = False
+            first_in_range_date = None
+            for _, resolved_row in resolved_rows.iterrows():
+                resolved_dt = resolved_row["StartTime"]
+                if isinstance(resolved_dt, datetime):
+                    resolved_date_only = resolved_dt.date()
+                elif isinstance(resolved_dt, pd.Timestamp):
+                    resolved_date_only = resolved_dt.date()
+                else:
+                    continue
+
+                in_range = True
+                if start_date is not None and resolved_date_only < start_date:
+                    in_range = False
+                if end_date is not None and resolved_date_only > end_date:
+                    in_range = False
+
+                if in_range:
+                    has_resolved_in_range = True
+                    if first_in_range_date is None:
+                        first_in_range_date = resolved_dt
+                        first_in_range_agent = resolved_row["Email"]
+                    # Don't break — we still want the very first in-range
+                    # for the record, so we only set first_in_range_date once
+
+            if has_resolved_in_range:
+                # Use the first resolved within range as the reopen_date
+                # The resolved_date is the first resolved in the entire history
+                first_resolved_all = resolved_rows.iloc[0]
+                results.append(
+                    {
+                        "case_number": case_number,
+                        "resolved_date": first_resolved_all["StartTime"],
+                        "reopen_date": first_in_range_date,
+                        "agent": first_in_range_agent,
+                        "detection_type": "reopen_por_resolved_en_rango",
+                        "post_resolved_new_value": RESOLVED_VALUE,
+                    }
+                )
 
     if not results:
         return pd.DataFrame(
