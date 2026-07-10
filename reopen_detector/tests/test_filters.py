@@ -2,7 +2,7 @@
 
 import sys
 from pathlib import Path
-from datetime import datetime
+from datetime import date
 
 import pandas as pd
 
@@ -48,8 +48,8 @@ def test_filter_by_reopen_date_inclusive():
         ]
     )
 
-    start = datetime(2026, 7, 2)
-    end = datetime(2026, 7, 6)
+    start = date(2026, 7, 2)
+    end = date(2026, 7, 6)
 
     result = filter_by_reopen_date(df, start, end)
 
@@ -84,7 +84,7 @@ def test_filter_no_start_date():
         ]
     )
 
-    end = datetime(2026, 6, 30)
+    end = date(2026, 6, 30)
     result = filter_by_reopen_date(df, None, end)
 
     assert len(result) == 1
@@ -114,7 +114,7 @@ def test_filter_no_end_date():
         ]
     )
 
-    start = datetime(2026, 7, 1)
+    start = date(2026, 7, 1)
     result = filter_by_reopen_date(df, start, None)
 
     assert len(result) == 1
@@ -125,7 +125,7 @@ def test_filter_empty_df():
     """Test filter on empty DataFrame."""
     df = _build_reopens_df([])
     result = filter_by_reopen_date(
-        df, datetime(2026, 7, 1), datetime(2026, 7, 31)
+        df, date(2026, 7, 1), date(2026, 7, 31)
     )
     assert len(result) == 0
 
@@ -146,14 +146,14 @@ def test_filter_reopen_date_not_starttime():
     )
 
     # Filter to dates well after resolved_date but covering reopen_date
-    start = datetime(2026, 7, 5)
-    end = datetime(2026, 7, 15)
+    start = date(2026, 7, 5)
+    end = date(2026, 7, 15)
     result = filter_by_reopen_date(df, start, end)
     assert len(result) == 1
 
     # Filter to dates before reopen_date — should exclude it
-    start2 = datetime(2026, 7, 1)
-    end2 = datetime(2026, 7, 5)
+    start2 = date(2026, 7, 1)
+    end2 = date(2026, 7, 5)
     result2 = filter_by_reopen_date(df, start2, end2)
     # reopen_date is 2026-07-10 which is outside 2026-07-01 to 2026-07-05 range
     assert len(result2) == 0

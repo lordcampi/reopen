@@ -1,6 +1,7 @@
 """Streamlit UI for Reopen Detector."""
 
 import sys
+from datetime import time
 from pathlib import Path
 
 import streamlit as st
@@ -42,12 +43,16 @@ uploaded_file = st.file_uploader(
 )
 
 # Step 2: Date range
-st.header("2. Seleccionar rango de fechas")
+st.header("2. Seleccionar rango de fechas y horas")
+st.caption("Horario de Uruguay (UTC-3)")
+
 col1, col2 = st.columns(2)
 with col1:
     start_date = st.date_input("Fecha inicio", value=None)
+    start_time = st.time_input("Hora inicio", value=time(0, 0))
 with col2:
     end_date = st.date_input("Fecha fin", value=None)
+    end_time = st.time_input("Hora fin", value=time(23, 59))
 
 # Step 3: Analyze button
 st.header("3. Analizar")
@@ -90,9 +95,13 @@ if analyze_clicked:
                 all_reopens = detect_reopens(normalized_df)
                 total_reopens = len(all_reopens)
 
-                # Filter by date range
+                # Filter by date range and time
                 filtered_reopens = filter_by_reopen_date(
-                    all_reopens, start_date, end_date
+                    all_reopens,
+                    start_date,
+                    end_date,
+                    start_time,
+                    end_time,
                 )
                 reopens_in_range = len(filtered_reopens)
 
