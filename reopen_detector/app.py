@@ -119,12 +119,16 @@ if analyze_clicked:
                     invalid_dates=invalid_dates,
                     total_reopens=total_reopens,
                     reopens_in_range=reopens_in_range,
-                    unique_cases_with_reopens=(
-                        all_reopens["case_number"].nunique()
-                        if not all_reopens.empty
-                        else 0
-                    ),
                 )
+
+                # Add the unique cases with reopen metric separately
+                # (avoids caching issues with stale module imports)
+                cases_with_reopen = (
+                    all_reopens["case_number"].nunique()
+                    if not all_reopens.empty
+                    else 0
+                )
+                st.session_state.metrics["Casos con reopen"] = cases_with_reopen
 
                 # Format for display (aggregated: one row per case)
                 st.session_state.visible_df = format_aggregated_table(filtered_reopens)
