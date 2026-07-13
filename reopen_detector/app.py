@@ -124,8 +124,8 @@ if analyze_clicked:
                 # Add the unique cases with reopen metric separately
                 # (avoids caching issues with stale module imports)
                 cases_with_reopen = (
-                    all_reopens["case_number"].nunique()
-                    if not all_reopens.empty
+                    filtered_reopens["case_number"].nunique()
+                    if not filtered_reopens.empty
                     else 0
                 )
                 st.session_state.metrics["Casos con reopen"] = cases_with_reopen
