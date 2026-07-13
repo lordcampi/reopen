@@ -17,7 +17,7 @@ def normalize_dataframe(df: pd.DataFrame) -> tuple[pd.DataFrame, int]:
     df = df.copy()
 
     # Strip whitespace from string columns
-    string_columns = ["NewValue", "Email", "case_number"]
+    string_columns = ["NewValue", "Email", "case_number", "Country"]
     for col in string_columns:
         if col in df.columns:
             df[col] = df[col].astype(str).str.strip()

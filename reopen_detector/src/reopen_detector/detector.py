@@ -48,6 +48,9 @@ def detect_reopens(
     """
     results = []
 
+    # Check if Country column exists in the source data
+    has_country = "Country" in df.columns
+
     for case_number, group in df.groupby("case_number"):
         # Group is already sorted by StartTime (from normalizer)
         group = group.reset_index(drop=True)
@@ -82,6 +85,14 @@ def detect_reopens(
         else:
             detection_type = "reopen_confirmado"
 
+        # Get country from the group (all rows in a case share the same country)
+        country = (
+            str(subsequent_row["Country"]).strip()
+            if has_country and "Country" in subsequent_row.index
+            and pd.notna(subsequent_row["Country"])
+            else ""
+        )
+
         results.append(
             {
                 "case_number": case_number,
@@ -90,6 +101,7 @@ def detect_reopens(
                 "agent": agent,
                 "detection_type": detection_type,
                 "post_resolved_new_value": post_resolved_new_value,
+                "country": country,
             }
         )
 
@@ -148,6 +160,12 @@ def detect_reopens(
                 # Use the first resolved within range as the reopen_date
                 # The resolved_date is the first resolved in the entire history
                 first_resolved_all = resolved_rows.iloc[0]
+                country = (
+                    str(resolved_rows.iloc[0]["Country"]).strip()
+                    if has_country and "Country" in resolved_rows.columns
+                    and pd.notna(resolved_rows.iloc[0]["Country"])
+                    else ""
+                )
                 results.append(
                     {
                         "case_number": case_number,
@@ -156,6 +174,7 @@ def detect_reopens(
                         "agent": first_in_range_agent,
                         "detection_type": "reopen_por_resolved_en_rango",
                         "post_resolved_new_value": RESOLVED_VALUE,
+                        "country": country,
                     }
                 )
 
@@ -168,6 +187,7 @@ def detect_reopens(
                 "agent",
                 "detection_type",
                 "post_resolved_new_value",
+                "country",
             ]
         )
 

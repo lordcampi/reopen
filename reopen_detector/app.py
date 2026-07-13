@@ -119,6 +119,11 @@ if analyze_clicked:
                     invalid_dates=invalid_dates,
                     total_reopens=total_reopens,
                     reopens_in_range=reopens_in_range,
+                    unique_cases_with_reopens=(
+                        all_reopens["case_number"].nunique()
+                        if not all_reopens.empty
+                        else 0
+                    ),
                 )
 
                 # Format for display (aggregated: one row per case)

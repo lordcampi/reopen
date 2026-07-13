@@ -59,6 +59,7 @@ def format_aggregated_table(df: pd.DataFrame) -> pd.DataFrame:
             reopen_count=("reopen_date", "count"),
             last_reopen_date=("reopen_date", "max"),
             last_agent=("agent", "last"),
+            country=("country", "first"),
         )
         .reset_index()
     )

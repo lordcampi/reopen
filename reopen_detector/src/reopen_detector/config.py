@@ -11,6 +11,7 @@ VISIBLE_COLUMNS_MAP = {
     "case_number": "Número de caso",
     "reopen_date": "Fecha",
     "agent": "Agente",
+    "country": "País",
 }
 
 # Column names for aggregated visible output (one row per case)
@@ -19,6 +20,7 @@ AGGREGATED_COLUMNS_MAP = {
     "reopen_count": "Reaperturas en el período",
     "last_reopen_date": "Última fecha de reapertura",
     "last_agent": "Último agente",
+    "country": "País",
 }
 
 # Technical detail columns
@@ -29,6 +31,7 @@ TECHNICAL_COLUMNS = [
     "agent",
     "detection_type",
     "post_resolved_new_value",
+    "country",
 ]
 
 # Spanish month mapping for date parsing

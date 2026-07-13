@@ -9,6 +9,7 @@ def calculate_metrics(
     invalid_dates: int,
     total_reopens: int,
     reopens_in_range: int,
+    unique_cases_with_reopens: int = 0,
 ) -> dict:
     """Calculate summary metrics.
 
@@ -18,6 +19,8 @@ def calculate_metrics(
         invalid_dates: Number of rows dropped due to invalid StartTime.
         total_reopens: Total reopens detected (before filtering).
         reopens_in_range: Reopens within the selected date range.
+        unique_cases_with_reopens: Number of unique cases with at least one
+            reopen event.
 
     Returns:
         Dictionary with metric names and values.
@@ -28,4 +31,5 @@ def calculate_metrics(
         "Filas con fecha inválida": invalid_dates,
         "Reopens detectados (total)": total_reopens,
         "Reopens en rango": reopens_in_range,
+        "Casos con reopen": unique_cases_with_reopens,
     }
