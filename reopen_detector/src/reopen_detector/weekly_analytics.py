@@ -6,7 +6,14 @@ from datetime import date
 
 import pandas as pd
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+
+from reopen_detector.chart_theme import (
+    THEME_PRIMARY,
+    THEME_SECONDARY,
+    THEME_TEXT,
+    THEME_TEXT_MUTED,
+    dark_chart_layout,
+)
 
 MONTHS_ES = {
     1: "ene",
@@ -23,12 +30,6 @@ MONTHS_ES = {
     12: "dic",
 }
 
-THEME_PRIMARY = "#2563eb"
-THEME_SECONDARY = "#7c3aed"
-THEME_ACCENT = "#0ea5e9"
-THEME_MUTED = "#94a3b8"
-THEME_HIGHLIGHT = "#f59e0b"
-
 
 def _format_short_date(value: date) -> str:
     return f"{value.day} {MONTHS_ES[value.month]}"
@@ -40,6 +41,11 @@ def format_week_label(year: int, week: int, start: date, end: date) -> str:
         f"Semana {week} ({_format_short_date(start)} – "
         f"{_format_short_date(end)} {end.year})"
     )
+
+
+def format_week_short_label(week: int) -> str:
+    """Short label for chart legends."""
+    return f"Semana {week}"
 
 
 def _iso_parts(series: pd.Series) -> pd.DataFrame:
@@ -72,6 +78,7 @@ def build_week_catalog(year: int) -> list[dict]:
                 "start": start,
                 "end": end,
                 "label": format_week_label(year, week, start, end),
+                "short_label": format_week_short_label(week),
             }
         )
 
@@ -103,6 +110,7 @@ def count_reopens_in_week(
         "year": year,
         "week": week,
         "label": week_info["label"],
+        "short_label": week_info["short_label"],
         "start": week_info["start"],
         "end": week_info["end"],
         "total": len(week_df),
@@ -157,130 +165,74 @@ def weekly_totals_for_year(reopens_df: pd.DataFrame, year: int) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def _chart_layout(title: str) -> dict:
-    return dict(
-        title=dict(text=title, font=dict(size=18, color="#0f172a")),
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="Inter, Segoe UI, sans-serif", color="#334155"),
-        margin=dict(l=40, r=24, t=64, b=40),
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1,
-        ),
-        xaxis=dict(showgrid=False, linecolor="#e2e8f0"),
-        yaxis=dict(gridcolor="#f1f5f9", linecolor="#e2e8f0", zeroline=False),
-    )
-
-
-def build_comparison_chart(comparison: dict) -> go.Figure:
-    """Grouped bar chart comparing two ISO weeks."""
+def build_weekly_comparison_donut(comparison: dict) -> go.Figure:
+    """Donut chart comparing reopen totals between two ISO weeks."""
     week_a = comparison["week_a"]
     week_b = comparison["week_b"]
-    metrics = ["Reopens totales", "Casos únicos"]
+    values = [week_a["total"], week_b["total"]]
+    labels = [week_a["short_label"], week_b["short_label"]]
+    total = sum(values)
 
-    fig = go.Figure()
-    fig.add_trace(
-        go.Bar(
-            name=week_a["label"],
-            x=metrics,
-            y=[week_a["total"], week_a["unique_cases"]],
-            marker=dict(color=THEME_PRIMARY, line=dict(width=0)),
-            text=[week_a["total"], week_a["unique_cases"]],
-            textposition="outside",
-        )
-    )
-    fig.add_trace(
-        go.Bar(
-            name=week_b["label"],
-            x=metrics,
-            y=[week_b["total"], week_b["unique_cases"]],
-            marker=dict(color=THEME_SECONDARY, line=dict(width=0)),
-            text=[week_b["total"], week_b["unique_cases"]],
-            textposition="outside",
-        )
-    )
-
-    fig.update_layout(
-        **_chart_layout("Comparación semanal"),
-        barmode="group",
-        bargap=0.28,
-        bargroupgap=0.12,
-        height=420,
-    )
-
-    delta_pct = comparison["delta_pct"]
-    if delta_pct is not None:
-        direction = "↑" if delta_pct >= 0 else "↓"
-        annotation = f"{direction} {abs(delta_pct):.1f}% en reopens totales"
+    if total == 0:
+        pie_values = [1, 1]
+        hover_text = [
+            f"{week_a['short_label']}<br>{week_a['label']}<br>Reopens: 0",
+            f"{week_b['short_label']}<br>{week_b['label']}<br>Reopens: 0",
+        ]
+        colors = ["#1e3a5f", "#3b2f5c"]
     else:
-        annotation = "Sin variación porcentual (base en 0)"
+        pie_values = values
+        hover_text = [
+            (
+                f"{week_a['short_label']}<br>{week_a['label']}<br>"
+                f"Reopens: {week_a['total']}<br>"
+                f"Casos únicos: {week_a['unique_cases']}"
+            ),
+            (
+                f"{week_b['short_label']}<br>{week_b['label']}<br>"
+                f"Reopens: {week_b['total']}<br>"
+                f"Casos únicos: {week_b['unique_cases']}"
+            ),
+        ]
+        colors = [THEME_PRIMARY, THEME_SECONDARY]
 
+    fig = go.Figure(
+        data=[
+            go.Pie(
+                labels=labels,
+                values=pie_values,
+                hole=0.62,
+                marker=dict(
+                    colors=colors,
+                    line=dict(color="#0a0a0a", width=2),
+                ),
+                textinfo="none",
+                hoverinfo="text",
+                hovertext=hover_text,
+                sort=False,
+            )
+        ]
+    )
+
+    layout = dark_chart_layout(None, height=400)
+    layout["margin"] = dict(l=24, r=24, t=24, b=72)
+    fig.update_layout(**layout, showlegend=True)
+
+    center_text = f"<b>{total}</b><br><span style='font-size:12px;color:#94a3b8'>reopens</span>"
     fig.add_annotation(
-        text=annotation,
-        xref="paper",
-        yref="paper",
-        x=0,
-        y=1.12,
+        text=center_text,
+        x=0.5,
+        y=0.5,
+        font=dict(size=22, color=THEME_TEXT),
         showarrow=False,
-        font=dict(size=13, color="#64748b"),
     )
 
     return fig
 
 
-def build_trend_chart(
-    weekly_df: pd.DataFrame, week_a: int, week_b: int
-) -> go.Figure:
-    """Weekly trend chart for the full year with selected weeks highlighted."""
-    colors = [
-        THEME_HIGHLIGHT if week in (week_a, week_b) else THEME_ACCENT
-        for week in weekly_df["week"]
-    ]
-
-    fig = make_subplots(specs=[[{"secondary_y": False}]])
-    fig.add_trace(
-        go.Bar(
-            x=weekly_df["week"],
-            y=weekly_df["total"],
-            name="Reopens",
-            marker=dict(color=colors, line=dict(width=0)),
-            hovertext=weekly_df["label"],
-            hoverinfo="text+y",
-        )
-    )
-
-    fig.update_layout(
-        **_chart_layout("Tendencia semanal del año"),
-        height=380,
-        xaxis_title="Semana ISO",
-        yaxis_title="Reopens",
-        showlegend=False,
-    )
-
-    for week in (week_a, week_b):
-        row = weekly_df.loc[weekly_df["week"] == week]
-        if row.empty:
-            continue
-        total = int(row.iloc[0]["total"])
-        fig.add_vline(
-            x=week,
-            line_width=1.5,
-            line_dash="dot",
-            line_color=THEME_HIGHLIGHT if week == week_a else THEME_SECONDARY,
-        )
-        fig.add_annotation(
-            x=week,
-            y=total,
-            text=f"S{week}",
-            showarrow=True,
-            arrowhead=2,
-            ax=0,
-            ay=-28,
-            font=dict(size=11, color="#475569"),
-        )
-
-    return fig
+def format_delta_pct(delta_pct: float | None) -> str:
+    """Format percentage delta for display."""
+    if delta_pct is None:
+        return "Sin variación (base en 0)"
+    direction = "+" if delta_pct >= 0 else ""
+    return f"{direction}{delta_pct:.1f}% vs Semana A"
