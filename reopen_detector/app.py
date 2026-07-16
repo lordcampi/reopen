@@ -206,7 +206,12 @@ def render_range_analysis_tab(
 ) -> None:
     """Render range filters, metrics, country chart, table and Excel export."""
     if show_v2_badge:
-        st.info("V2 Prueba — sandbox de experimentos. Los cambios aquí no afectan Análisis por rango.")
+        st.info(
+            "V2 Prueba — sandbox de experimentos. Los cambios aquí no afectan "
+            "Análisis por rango. Cuenta cada **Resolved** adicional del caso "
+            "dentro del rango (por **StartTime**). Un caso debería tener un solo "
+            "cierre; resoluciones repetidas = reopens."
+        )
 
     st.caption("Horario de Uruguay (UTC-3)")
 

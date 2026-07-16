@@ -8,7 +8,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from reopen_detector.detector_v2 import detect_reopens_v2
+from reopen_detector.detector_v2 import DETECTION_TYPE_V2, detect_reopens_v2
 from reopen_detector.filters import filter_by_reopen_date
 from reopen_detector.normalizer import normalize_dataframe
 
@@ -65,10 +65,71 @@ def test_multiple_resolved_in_range_one_row_each():
 
     assert len(filtered) == 4
     assert filtered["case_number"].nunique() == 1
-    assert filtered.iloc[0]["detection_type"] == "reopen_por_resolved_en_rango_v2"
+    assert filtered.iloc[0]["detection_type"] == DETECTION_TYPE_V2
     assert filtered["reopen_date"].tolist() == sorted(
         filtered["reopen_date"].tolist()
     )
+
+
+def test_resolved_outside_range_plus_one_inside_counts_one():
+    """One Resolved outside range + one inside → 1 reopen in period."""
+    df = _build_df(
+        [
+            {
+                "StartTime": "2026-06-01 10:00:00",
+                "NewValue": "Resolved",
+                "Email": "agent1@example.com",
+                "case_number": "CASE-001",
+            },
+            {
+                "StartTime": "2026-07-08 14:00:00",
+                "NewValue": "Resolved",
+                "Email": "agent2@example.com",
+                "case_number": "CASE-001",
+            },
+        ]
+    )
+
+    result = detect_reopens_v2(
+        df, start_date=date(2026, 7, 6), end_date=date(2026, 7, 12)
+    )
+
+    assert len(result) == 1
+    assert result.iloc[0]["case_number"] == "CASE-001"
+    assert result.iloc[0]["detection_type"] == DETECTION_TYPE_V2
+
+
+def test_multiple_in_range_skips_first_historical_even_if_also_in_range():
+    """First historical Resolved in range is not counted; later ones are."""
+    df = _build_df(
+        [
+            {
+                "StartTime": "2026-07-07 09:00:00",
+                "NewValue": "Resolved",
+                "Email": "agent1@example.com",
+                "case_number": "CASE-002",
+            },
+            {
+                "StartTime": "2026-07-09 10:00:00",
+                "NewValue": "Resolved",
+                "Email": "agent2@example.com",
+                "case_number": "CASE-002",
+            },
+            {
+                "StartTime": "2026-07-11 11:00:00",
+                "NewValue": "Resolved",
+                "Email": "agent3@example.com",
+                "case_number": "CASE-002",
+            },
+        ]
+    )
+
+    result = detect_reopens_v2(
+        df, start_date=date(2026, 7, 6), end_date=date(2026, 7, 12)
+    )
+
+    assert len(result) == 2
+    assert result["reopen_date"].tolist() == sorted(result["reopen_date"].tolist())
 
 
 def test_first_resolved_in_range_not_counted_without_prior():
@@ -90,26 +151,21 @@ def test_first_resolved_in_range_not_counted_without_prior():
     assert len(result) == 0
 
 
-def test_resolved_outside_range_excluded():
+def test_single_resolved_with_non_resolved_activity_not_counted():
+    """One Resolved + In Progress in range → 0 reopens (Resolved-only rule)."""
     df = _build_df(
         [
             {
-                "StartTime": "2026-06-01 10:00:00",
+                "StartTime": "2026-07-01 10:00:00",
                 "NewValue": "Resolved",
                 "Email": "agent1@example.com",
-                "case_number": "CASE-001",
+                "case_number": "CASE-003",
             },
             {
-                "StartTime": "2026-07-05 10:00:00",
-                "NewValue": "Resolved",
+                "StartTime": "2026-07-08 12:00:00",
+                "NewValue": "In Progress",
                 "Email": "agent2@example.com",
-                "case_number": "CASE-001",
-            },
-            {
-                "StartTime": "2026-07-20 10:00:00",
-                "NewValue": "Resolved",
-                "Email": "agent3@example.com",
-                "case_number": "CASE-001",
+                "case_number": "CASE-003",
             },
         ]
     )
@@ -118,6 +174,67 @@ def test_resolved_outside_range_excluded():
         df, start_date=date(2026, 7, 6), end_date=date(2026, 7, 12)
     )
     assert len(result) == 0
+
+
+def test_resolved_outside_range_excluded():
+    df = _build_df(
+        [
+            {
+                "StartTime": "2026-06-01 10:00:00",
+                "NewValue": "Resolved",
+                "Email": "agent1@example.com",
+                "case_number": "CASE-004",
+            },
+            {
+                "StartTime": "2026-07-05 10:00:00",
+                "NewValue": "Resolved",
+                "Email": "agent2@example.com",
+                "case_number": "CASE-004",
+            },
+            {
+                "StartTime": "2026-07-20 10:00:00",
+                "NewValue": "Resolved",
+                "Email": "agent3@example.com",
+                "case_number": "CASE-004",
+            },
+        ]
+    )
+
+    result = detect_reopens_v2(
+        df, start_date=date(2026, 7, 6), end_date=date(2026, 7, 12)
+    )
+    assert len(result) == 0
+
+
+def test_defensive_dedup_same_case_and_starttime():
+    """Identical Resolved rows must not inflate the reopen count."""
+    df = _build_df(
+        [
+            {
+                "StartTime": "2026-06-01 10:00:00",
+                "NewValue": "Resolved",
+                "Email": "agent1@example.com",
+                "case_number": "CASE-DEDUP",
+            },
+            {
+                "StartTime": "2026-07-08 10:00:00",
+                "NewValue": "Resolved",
+                "Email": "agent2@example.com",
+                "case_number": "CASE-DEDUP",
+            },
+            {
+                "StartTime": "2026-07-08 10:00:00",
+                "NewValue": "Resolved",
+                "Email": "agent2@example.com",
+                "case_number": "CASE-DEDUP",
+            },
+        ]
+    )
+
+    result = detect_reopens_v2(
+        df, start_date=date(2026, 7, 6), end_date=date(2026, 7, 12)
+    )
+    assert len(result) == 1
 
 
 def test_case_348917008_from_sample_csv():
