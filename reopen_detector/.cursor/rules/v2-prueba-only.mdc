@@ -1,0 +1,33 @@
+---
+description: Restringe cambios al tab Análisis por rango V2 Prueba; no tocar Análisis por rango (V1)
+alwaysApply: true
+---
+
+# Alcance: solo V2 Prueba
+
+En este proyecto, los cambios deben impactar **únicamente** la pestaña **Análisis por rango V2 Prueba**. La pestaña **Análisis por rango** (V1, producción) no debe modificarse.
+
+## Qué NO tocar
+
+- `render_range_analysis()` y su bloque `with tab_range`
+- Session state V1: `metrics`, `visible_df`, `technical_in_range`, `range_ready`
+- Widget keys con prefijo `range_` (p. ej. `range_analyze`, `range_start_date`)
+- Comportamiento por defecto de `render_range_analysis_tab()` cuando se invoca desde V1
+
+## Dónde sí trabajar
+
+- `render_range_analysis_v2()` y su bloque `with tab_range_v2`
+- Session state V2: `metrics_v2`, `visible_df_v2`, `technical_in_range_v2`, `range_ready_v2`
+- Widget keys con prefijo `range_v2_`
+- Módulos o funciones nuevas con sufijo `_v2` cuando la lógica sea exclusiva de V2
+
+## Código compartido (`render_range_analysis_tab`, `src/reopen_detector/*`)
+
+- Si se modifica código compartido, **no alterar el comportamiento de V1**
+- Preferir parámetros opcionales con defaults que preserven V1
+- Si un cambio rompe compatibilidad, crear variante V2 (p. ej. `build_country_donut_chart_v2`) en lugar de cambiar la función existente
+
+## Verificación antes de terminar
+
+- V1 sigue funcionando igual que antes
+- Los cambios son visibles solo en la pestaña V2 Prueba

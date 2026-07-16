@@ -12,6 +12,7 @@ from reopen_detector.loader import load_csv
 from reopen_detector.validator import validate_dataframe
 from reopen_detector.normalizer import normalize_dataframe
 from reopen_detector.detector import detect_reopens
+from reopen_detector.detector_v2 import detect_reopens_v2
 from reopen_detector.filters import filter_by_reopen_date
 from reopen_detector.formatter import format_aggregated_table
 from reopen_detector.exporter import export_to_excel
@@ -201,6 +202,7 @@ def render_range_analysis_tab(
     analyze_button_key: str,
     excel_filename: str = "reopens_detectados.xlsx",
     show_v2_badge: bool = False,
+    detect_reopens_fn=detect_reopens,
 ) -> None:
     """Render range filters, metrics, country chart, table and Excel export."""
     if show_v2_badge:
@@ -246,7 +248,7 @@ def render_range_analysis_tab(
             with st.spinner("Analizando rango..."):
                 try:
                     normalized_df = st.session_state.normalized_df
-                    range_reopens = detect_reopens(
+                    range_reopens = detect_reopens_fn(
                         normalized_df,
                         start_date=start_date if start_date else None,
                         end_date=end_date if end_date else None,
@@ -335,6 +337,7 @@ def render_range_analysis_v2() -> None:
         analyze_button_key="range_v2_analyze",
         excel_filename="reopens_detectados_v2.xlsx",
         show_v2_badge=True,
+        detect_reopens_fn=detect_reopens_v2,
     )
 
 
