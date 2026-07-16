@@ -191,19 +191,53 @@ def render_weekly_comparison(all_reopens) -> None:
     )
 
 
-def render_range_analysis() -> None:
+def render_range_analysis_tab(
+    *,
+    widget_prefix: str,
+    metrics_key: str,
+    visible_df_key: str,
+    technical_key: str,
+    ready_key: str,
+    analyze_button_key: str,
+    excel_filename: str = "reopens_detectados.xlsx",
+    show_v2_badge: bool = False,
+) -> None:
     """Render range filters, metrics, country chart, table and Excel export."""
+    if show_v2_badge:
+        st.info("V2 Prueba — sandbox de experimentos. Los cambios aquí no afectan Análisis por rango.")
+
     st.caption("Horario de Uruguay (UTC-3)")
 
     col1, col2 = st.columns(2)
     with col1:
-        start_date = st.date_input("Fecha inicio", value=None, key="range_start_date")
-        start_time = st.time_input("Hora inicio", value=time(0, 0), key="range_start_time")
+        start_date = st.date_input(
+            "Fecha inicio",
+            value=None,
+            key=f"{widget_prefix}start_date",
+        )
+        start_time = st.time_input(
+            "Hora inicio",
+            value=time(0, 0),
+            key=f"{widget_prefix}start_time",
+        )
     with col2:
-        end_date = st.date_input("Fecha fin", value=None, key="range_end_date")
-        end_time = st.time_input("Hora fin", value=time(23, 59), key="range_end_time")
+        end_date = st.date_input(
+            "Fecha fin",
+            value=None,
+            key=f"{widget_prefix}end_date",
+        )
+        end_time = st.time_input(
+            "Hora fin",
+            value=time(23, 59),
+            key=f"{widget_prefix}end_time",
+        )
 
-    analyze_range = st.button("Analizar rango", type="primary", use_container_width=True)
+    analyze_range = st.button(
+        "Analizar rango",
+        type="primary",
+        use_container_width=True,
+        key=analyze_button_key,
+    )
 
     if analyze_range:
         if st.session_state.normalized_df is None:
@@ -226,22 +260,24 @@ def render_range_analysis() -> None:
                         start_time,
                         end_time,
                     )
-                    st.session_state.metrics = calculate_metrics(filtered_reopens)
-                    st.session_state.visible_df = format_aggregated_table(filtered_reopens)
-                    st.session_state.technical_in_range = filtered_reopens
-                    st.session_state.range_ready = True
+                    st.session_state[metrics_key] = calculate_metrics(filtered_reopens)
+                    st.session_state[visible_df_key] = format_aggregated_table(
+                        filtered_reopens
+                    )
+                    st.session_state[technical_key] = filtered_reopens
+                    st.session_state[ready_key] = True
                 except Exception as e:
                     st.error(f"Error al analizar el rango: {str(e)}")
-                    st.session_state.range_ready = False
+                    st.session_state[ready_key] = False
 
-    if not st.session_state.get("range_ready"):
+    if not st.session_state.get(ready_key):
         st.info("Selecciona un rango de fechas y presiona Analizar rango.")
         return
 
     st.markdown('<p class="section-title">Métricas del período</p>', unsafe_allow_html=True)
-    render_metric_cards(st.session_state.metrics)
+    render_metric_cards(st.session_state[metrics_key])
 
-    tech_export = st.session_state.technical_in_range
+    tech_export = st.session_state[technical_key]
     country_chart = build_country_donut_chart(tech_export)
 
     if country_chart is not None:
@@ -252,26 +288,54 @@ def render_range_analysis() -> None:
 
     st.markdown('<p class="section-title">Resultados</p>', unsafe_allow_html=True)
 
-    if st.session_state.visible_df is not None and not st.session_state.visible_df.empty:
+    visible_df = st.session_state[visible_df_key]
+    if visible_df is not None and not visible_df.empty:
         st.dataframe(
-            st.session_state.visible_df,
+            visible_df,
             use_container_width=True,
             hide_index=True,
         )
 
         excel_data = export_to_excel(
-            st.session_state.visible_df,
-            tech_export if tech_export is not None else st.session_state.visible_df,
+            visible_df,
+            tech_export if tech_export is not None else visible_df,
         )
         st.download_button(
             label="Descargar Excel",
             data=excel_data,
-            file_name="reopens_detectados.xlsx",
+            file_name=excel_filename,
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True,
+            key=f"{widget_prefix}download_excel",
         )
     else:
         st.info("No se encontraron reopens en el rango de fechas seleccionado.")
+
+
+def render_range_analysis() -> None:
+    """Render the production range analysis tab."""
+    render_range_analysis_tab(
+        widget_prefix="range_",
+        metrics_key="metrics",
+        visible_df_key="visible_df",
+        technical_key="technical_in_range",
+        ready_key="range_ready",
+        analyze_button_key="range_analyze",
+    )
+
+
+def render_range_analysis_v2() -> None:
+    """Render the sandbox V2 range analysis tab."""
+    render_range_analysis_tab(
+        widget_prefix="range_v2_",
+        metrics_key="metrics_v2",
+        visible_df_key="visible_df_v2",
+        technical_key="technical_in_range_v2",
+        ready_key="range_ready_v2",
+        analyze_button_key="range_v2_analyze",
+        excel_filename="reopens_detectados_v2.xlsx",
+        show_v2_badge=True,
+    )
 
 
 st.set_page_config(
@@ -319,6 +383,14 @@ if "csv_ready" not in st.session_state:
     st.session_state.csv_ready = False
 if "range_ready" not in st.session_state:
     st.session_state.range_ready = False
+if "metrics_v2" not in st.session_state:
+    st.session_state.metrics_v2 = None
+if "visible_df_v2" not in st.session_state:
+    st.session_state.visible_df_v2 = None
+if "technical_in_range_v2" not in st.session_state:
+    st.session_state.technical_in_range_v2 = None
+if "range_ready_v2" not in st.session_state:
+    st.session_state.range_ready_v2 = False
 
 if process_clicked:
     if uploaded_file is None:
@@ -341,16 +413,25 @@ if process_clicked:
                 st.session_state.metrics = None
                 st.session_state.visible_df = None
                 st.session_state.technical_in_range = None
+                st.session_state.range_ready_v2 = False
+                st.session_state.metrics_v2 = None
+                st.session_state.visible_df_v2 = None
+                st.session_state.technical_in_range_v2 = None
                 st.success("CSV procesado. Usa las pestañas para analizar.")
             except Exception as e:
                 st.error(f"Error al procesar el archivo: {str(e)}")
                 st.session_state.csv_ready = False
 
 if st.session_state.csv_ready:
-    tab_range, tab_weekly = st.tabs(["Análisis por rango", "Comparación semanal"])
+    tab_range, tab_range_v2, tab_weekly = st.tabs(
+        ["Análisis por rango", "Análisis por rango V2 Prueba", "Comparación semanal"]
+    )
 
     with tab_range:
         render_range_analysis()
+
+    with tab_range_v2:
+        render_range_analysis_v2()
 
     with tab_weekly:
         if st.session_state.all_reopens is not None:
