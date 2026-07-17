@@ -209,8 +209,10 @@ def render_range_analysis_tab(
         st.info(
             "V2 Prueba — sandbox de experimentos. Los cambios aquí no afectan "
             "Análisis por rango. Cuenta cada **Resolved** adicional del caso "
-            "dentro del rango (por **StartTime**). Un caso debería tener un solo "
-            "cierre; resoluciones repetidas = reopens."
+            "dentro del rango (por **StartTime**). También puede contar un "
+            "reopen proxy por la primera gestión post-cierre cuando el "
+            "siguiente **Resolved** cae fuera del rango. Un caso debería "
+            "tener un solo cierre; resoluciones repetidas = reopens."
         )
 
     st.caption("Horario de Uruguay (UTC-3)")
