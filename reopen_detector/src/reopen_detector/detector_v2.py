@@ -284,3 +284,52 @@ def detect_reopens_v2(
         return _empty_result()
 
     return pd.DataFrame(results)
+
+
+def build_all_reopens_v2(
+    df: pd.DataFrame,
+    enable_open_cycle_proxy: bool | None = None,
+) -> pd.DataFrame:
+    """Build reopen rows for every ISO week overlapping the data span.
+
+    Runs ``detect_reopens_v2`` once per ISO week so weekly comparison matches
+    Análisis por rango for the same calendar bounds (Tipo A + Tipo B).
+    """
+    if df.empty or "StartTime" not in df.columns:
+        return _empty_result()
+
+    start_times = pd.to_datetime(df["StartTime"]).dropna()
+    if start_times.empty:
+        return _empty_result()
+
+    min_ts = start_times.min()
+    max_ts = start_times.max()
+    min_date = min_ts.date() if hasattr(min_ts, "date") else min_ts
+    max_date = max_ts.date() if hasattr(max_ts, "date") else max_ts
+
+    min_iso = min_date.isocalendar()
+    max_iso = max_date.isocalendar()
+    years = range(int(min_iso.year), int(max_iso.year) + 1)
+
+    frames: list[pd.DataFrame] = []
+    for year in years:
+        max_week = date(year, 12, 28).isocalendar().week
+        for week in range(1, max_week + 1):
+            week_start = date.fromisocalendar(year, week, 1)
+            week_end = date.fromisocalendar(year, week, 7)
+            if week_end < min_date or week_start > max_date:
+                continue
+
+            week_reopens = detect_reopens_v2(
+                df,
+                start_date=week_start,
+                end_date=week_end,
+                enable_open_cycle_proxy=enable_open_cycle_proxy,
+            )
+            if not week_reopens.empty:
+                frames.append(week_reopens)
+
+    if not frames:
+        return _empty_result()
+
+    return pd.concat(frames, ignore_index=True)

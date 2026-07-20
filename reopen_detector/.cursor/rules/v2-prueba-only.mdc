@@ -1,33 +1,31 @@
 ---
-description: Restringe cambios al tab Análisis por rango V2 Prueba; no tocar Análisis por rango (V1)
+description: Análisis por rango usa lógica V2; V1 oculto en Streamlit
 alwaysApply: true
 ---
 
-# Alcance: solo V2 Prueba
+# Alcance: Análisis por rango = V2
 
-En este proyecto, los cambios deben impactar **únicamente** la pestaña **Análisis por rango V2 Prueba**. La pestaña **Análisis por rango** (V1, producción) no debe modificarse.
+En la UI de Streamlit, **Análisis por rango** usa `detect_reopens_v2` / keys `range_v2_*`. La pestaña V1 está **oculta y no se ejecuta**.
 
-## Qué NO tocar
+## UI activa
 
-- `render_range_analysis()` y su bloque `with tab_range`
-- Session state V1: `metrics`, `visible_df`, `technical_in_range`, `range_ready`
-- Widget keys con prefijo `range_` (p. ej. `range_analyze`, `range_start_date`)
-- Comportamiento por defecto de `render_range_analysis_tab()` cuando se invoca desde V1
+- Pestañas: **Análisis por rango** (`render_range_analysis_v2`) y **Comparación semanal**
+- Comparación semanal se alimenta con `build_all_reopens_v2` (misma lógica V2 por semana ISO)
+- Session state activa: `metrics_v2`, `visible_df_v2`, `technical_in_range_v2`, `range_ready_v2`, `all_reopens`
 
-## Dónde sí trabajar
+## V1 (rollback, no usar en UI)
 
-- `render_range_analysis_v2()` y su bloque `with tab_range_v2`
-- Session state V2: `metrics_v2`, `visible_df_v2`, `technical_in_range_v2`, `range_ready_v2`
+- `render_range_analysis()` y `detect_reopens` permanecen en el código pero **no** se llaman desde la UI
+- No reactivar la pestaña V1 sin pedido explícito
+- No cambiar el comportamiento de `detector.py` salvo necesidad de rollback
+
+## Dónde trabajar
+
+- `render_range_analysis_v2()`, `detector_v2.py`, `build_all_reopens_v2`
 - Widget keys con prefijo `range_v2_`
-- Módulos o funciones nuevas con sufijo `_v2` cuando la lógica sea exclusiva de V2
+- Alineación semanal ↔ rango vía V2
 
-## Código compartido (`render_range_analysis_tab`, `src/reopen_detector/*`)
+## Verificación
 
-- Si se modifica código compartido, **no alterar el comportamiento de V1**
-- Preferir parámetros opcionales con defaults que preserven V1
-- Si un cambio rompe compatibilidad, crear variante V2 (p. ej. `build_country_donut_chart_v2`) en lugar de cambiar la función existente
-
-## Verificación antes de terminar
-
-- V1 sigue funcionando igual que antes
-- Los cambios son visibles solo en la pestaña V2 Prueba
+- Solo aparecen las dos pestañas activas
+- Totales de una semana ISO ≈ Análisis por rango con esas mismas fechas

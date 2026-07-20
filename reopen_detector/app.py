@@ -12,7 +12,7 @@ from reopen_detector.loader import load_csv
 from reopen_detector.validator import validate_dataframe
 from reopen_detector.normalizer import normalize_dataframe
 from reopen_detector.detector import detect_reopens
-from reopen_detector.detector_v2 import detect_reopens_v2
+from reopen_detector.detector_v2 import build_all_reopens_v2, detect_reopens_v2
 from reopen_detector.filters import filter_by_reopen_date
 from reopen_detector.formatter import format_aggregated_table
 from reopen_detector.exporter import export_to_excel
@@ -207,12 +207,11 @@ def render_range_analysis_tab(
     """Render range filters, metrics, country chart, table and Excel export."""
     if show_v2_badge:
         st.info(
-            "V2 Prueba — sandbox de experimentos. Los cambios aquí no afectan "
-            "Análisis por rango. Cuenta cada **Resolved** adicional del caso "
-            "dentro del rango (por **StartTime**). También puede contar un "
-            "reopen proxy por la primera gestión post-cierre cuando el "
-            "siguiente **Resolved** cae fuera del rango. Un caso debería "
-            "tener un solo cierre; resoluciones repetidas = reopens."
+            "Cuenta cada **Resolved** adicional del caso dentro del rango "
+            "(por **StartTime**). También puede contar un reopen proxy por la "
+            "primera gestión post-cierre cuando el siguiente **Resolved** cae "
+            "fuera del rango. Un caso debería tener un solo cierre; "
+            "resoluciones repetidas = reopens."
         )
 
     st.caption("Horario de Uruguay (UTC-3)")
@@ -322,7 +321,7 @@ def render_range_analysis_tab(
 
 
 def render_range_analysis() -> None:
-    """Render the production range analysis tab."""
+    """V1 range analysis (kept for rollback; not shown in Streamlit UI)."""
     render_range_analysis_tab(
         widget_prefix="range_",
         metrics_key="metrics",
@@ -334,7 +333,7 @@ def render_range_analysis() -> None:
 
 
 def render_range_analysis_v2() -> None:
-    """Render the sandbox V2 range analysis tab."""
+    """Render the active range analysis tab (V2 detection logic)."""
     render_range_analysis_tab(
         widget_prefix="range_v2_",
         metrics_key="metrics_v2",
@@ -342,7 +341,7 @@ def render_range_analysis_v2() -> None:
         technical_key="technical_in_range_v2",
         ready_key="range_ready_v2",
         analyze_button_key="range_v2_analyze",
-        excel_filename="reopens_detectados_v2.xlsx",
+        excel_filename="reopens_detectados.xlsx",
         show_v2_badge=True,
         detect_reopens_fn=detect_reopens_v2,
     )
@@ -417,7 +416,7 @@ if process_clicked:
 
                 normalized_df, _invalid_dates = normalize_dataframe(raw_df)
                 st.session_state.normalized_df = normalized_df
-                st.session_state.all_reopens = detect_reopens(normalized_df)
+                st.session_state.all_reopens = build_all_reopens_v2(normalized_df)
                 st.session_state.csv_ready = True
                 st.session_state.range_ready = False
                 st.session_state.metrics = None
@@ -433,14 +432,11 @@ if process_clicked:
                 st.session_state.csv_ready = False
 
 if st.session_state.csv_ready:
-    tab_range, tab_range_v2, tab_weekly = st.tabs(
-        ["Análisis por rango", "Análisis por rango V2 Prueba", "Comparación semanal"]
+    tab_range, tab_weekly = st.tabs(
+        ["Análisis por rango", "Comparación semanal"]
     )
 
     with tab_range:
-        render_range_analysis()
-
-    with tab_range_v2:
         render_range_analysis_v2()
 
     with tab_weekly:

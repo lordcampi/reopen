@@ -11,10 +11,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from reopen_detector.detector_v2 import (
     DETECTION_TYPE_OPEN_CYCLE_PROXY_V2,
     DETECTION_TYPE_V2,
+    build_all_reopens_v2,
     detect_reopens_v2,
 )
 from reopen_detector.filters import filter_by_reopen_date
 from reopen_detector.normalizer import normalize_dataframe
+from reopen_detector.weekly_analytics import count_reopens_in_week
 
 
 def _build_df(records: list[dict]) -> pd.DataFrame:
@@ -395,3 +397,82 @@ def test_case_349439940_from_csv4_if_present():
     assert (
         case_rows.iloc[0]["detection_type"] == DETECTION_TYPE_OPEN_CYCLE_PROXY_V2
     )
+
+
+def test_build_all_reopens_v2_includes_open_cycle_proxy_in_iso_week():
+    """349439940-style proxy appears in the ISO week of the activity."""
+    df = _build_df(
+        [
+            {
+                "StartTime": "2026-07-03 17:27:42",
+                "NewValue": "Resolved",
+                "Email": "alejandro@example.com",
+                "case_number": "349439940",
+            },
+            {
+                "StartTime": "2026-07-06 11:25:04",
+                "NewValue": "null",
+                "Email": "cesar@example.com",
+                "case_number": "349439940",
+            },
+            {
+                "StartTime": "2026-07-13 08:38:18",
+                "NewValue": "Resolved",
+                "Email": "cesar@example.com",
+                "case_number": "349439940",
+            },
+        ]
+    )
+
+    all_reopens = build_all_reopens_v2(df, enable_open_cycle_proxy=True)
+    week_28 = count_reopens_in_week(all_reopens, 2026, 28)
+
+    assert week_28["total"] == 1
+    assert week_28["unique_cases"] == 1
+    case_rows = all_reopens[all_reopens["case_number"].astype(str) == "349439940"]
+    proxy_rows = case_rows[
+        case_rows["detection_type"] == DETECTION_TYPE_OPEN_CYCLE_PROXY_V2
+    ]
+    assert len(proxy_rows) == 1
+
+    all_off = build_all_reopens_v2(df, enable_open_cycle_proxy=False)
+    week_28_off = count_reopens_in_week(all_off, 2026, 28)
+    assert week_28_off["total"] == 0
+
+
+def test_build_all_reopens_v2_aligns_with_range_for_iso_week():
+    """Weekly build for an ISO week matches detect_reopens_v2 for that week."""
+    df = _build_df(
+        [
+            {
+                "StartTime": "2026-06-25 08:00:00",
+                "NewValue": "Resolved",
+                "Email": "a@example.com",
+                "case_number": "CASE-A",
+            },
+            {
+                "StartTime": "2026-07-09 10:00:00",
+                "NewValue": "Resolved",
+                "Email": "b@example.com",
+                "case_number": "CASE-A",
+            },
+            {
+                "StartTime": "2026-07-10 11:00:00",
+                "NewValue": "Resolved",
+                "Email": "c@example.com",
+                "case_number": "CASE-A",
+            },
+        ]
+    )
+
+    week_start = date(2026, 7, 6)
+    week_end = date(2026, 7, 12)
+
+    range_rows = detect_reopens_v2(
+        df, start_date=week_start, end_date=week_end
+    )
+    all_reopens = build_all_reopens_v2(df)
+    week_rows = count_reopens_in_week(all_reopens, 2026, 28)
+
+    assert len(range_rows) == week_rows["total"]
+    assert range_rows["case_number"].nunique() == week_rows["unique_cases"]
